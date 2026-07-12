@@ -5,4 +5,7 @@ numpy>=1.24.0
 # Visualization
 matplotlib>=3.7.0
 
-# Note: GeoPandas and FastAPI will be added in Phase 2 & 3
+# Web Framework
+fastapi
+uvicorn
+python-multipart
