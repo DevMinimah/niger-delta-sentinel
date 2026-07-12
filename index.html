@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Niger Delta Sentinel | OSINT/GEOINT Engine</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        /* Dark Theme EnvoShield Style */
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-yellow: #f59e0b;
+            --border-color: #334155;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        header {
+            background-color: var(--bg-secondary);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: var(--accent-green);
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 350px;
+            background-color: var(--bg-secondary);
+            padding: 1.5rem;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .upload-section {
+            background-color: var(--bg-primary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px dashed var(--border-color);
+            text-align: center;
+        }
+
+        .upload-btn {
+            background-color: var(--accent-green);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+            width: 100%;
+            margin-top: 1rem;
+        }
+
+        .upload-btn:hover {
+            background-color: #059669;
+        }
+        
+        .upload-btn:disabled {
+            background-color: #475569;
+            cursor: not-allowed;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .status-msg {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            min-height: 20px;
+        }
+
+        .stats-panel {
+            background-color: var(--bg-primary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            display: none; /* Hidden initially */
+        }
+
+        .stats-panel h3 {
+            margin-top: 0;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 0.75rem 0;
+            font-size: 0.95rem;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+        }
+
+        .stat-value {
+            font-weight: bold;
+        }
+
+        .healthy { color: var(--accent-green); }
+        .sparse { color: var(--accent-yellow); }
+        .bare { color: var(--accent-red); }
+
+        #map {
+            flex: 1;
+            background-color: #000; /* Fallback */
+        }
+
+        /* Custom Leaflet Dark Mode Tweaks */
+        .leaflet-container {
+            background: #0f172a;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🛰️ Niger Delta Sentinel</h1>
+        <span style="color: var(--text-secondary); font-size: 0.9rem;">OSINT/GEOINT Engine v1.0</span>
+    </header>
+
+    <div class="container">
+        <aside class="sidebar">
+            <div class="upload-section">
+                <h3>Upload Satellite Imagery</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Select a Sentinel-2 GeoTIFF (.tif)</p>
+                <input type="file" id="file-input" accept=".tif, .tiff">
+                <button class="upload-btn" id="upload-btn" onclick="document.getElementById('file-input').click()">
+                    Choose File
+                </button>
+                <div class="status-msg" id="status-msg">Awaiting file selection...</div>
+            </div>
+
+            <div class="stats-panel" id="stats-panel">
+                <h3>Vegetation Health Statistics</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Total Valid Pixels:</span>
+                    <span class="stat-value" id="stat-total">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">🟢 Healthy (>0.4):</span>
+                    <span class="stat-value healthy" id="stat-healthy">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">🟡 Sparse (0.2-0.4):</span>
+                    <span class="stat-value sparse" id="stat-sparse">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">🔴 Bare/Degraded (<0.2):</span>
+                    <span class="stat-value bare" id="stat-bare">-</span>
+                </div>
+            </div>
+        </aside>
+
+        <main id="map"></main>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // Initialize Leaflet Map
+        // Default view: Niger Delta region (Port Harcourt approx coordinates)
+        const map = L.map('map').setView([4.8, 5.9], 8);
+
+        // Dark Matter Tile Layer for OSINT aesthetic
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        let currentOverlay = null;
+
+        // File Input Listener
+        document.getElementById('file-input').addEventListener('change', async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const statusMsg = document.getElementById('status-msg');
+            const uploadBtn = document.getElementById('upload-btn');
+            const statsPanel = document.getElementById('stats-panel');
+
+            // UI Feedback
+            statusMsg.innerText = `Uploading and processing ${file.name}... This may take a moment.`;
+            statusMsg.style.color = '#38bdf8'; // Blue
+            uploadBtn.disabled = true;
+            uploadBtn.innerText = 'Processing...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.detail || 'Server error occurred.');
+                }
+
+                const data = await response.json();
+
+                // Remove previous overlay if exists
+                if (currentOverlay) {
+                    map.removeLayer(currentOverlay);
+                }
+
+                // Add new NDVI overlay
+                // data.bounds is [[South, West], [North, East]]
+                currentOverlay = L.imageOverlay(data.image_url, data.bounds, {
+                    opacity: 0.8
+                }).addTo(map);
+
+                // Fit map to the new bounds
+                map.fitBounds(currentOverlay.getBounds());
+
+                // Update Statistics Panel
+                document.getElementById('stat-total').innerText = data.stats.total_valid_pixels.toLocaleString();
+                document.getElementById('stat-healthy').innerText = `${data.stats.healthy_pct.toFixed(2)}%`;
+                document.getElementById('stat-sparse').innerText = `${data.stats.sparse_pct.toFixed(2)}%`;
+                document.getElementById('stat-bare').innerText = `${data.stats.bare_pct.toFixed(2)}%`;
+                
+                statsPanel.style.display = 'block';
+
+                statusMsg.innerText = `Successfully processed ${file.name}.`;
+                statusMsg.style.color = '#10b981'; // Green
+
+            } catch (error) {
+                console.error('Error:', error);
+                statusMsg.innerText = `Error: ${error.message}`;
+                statusMsg.style.color = '#ef4444'; // Red
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.innerText = 'Choose File';
+            }
+        });
+    </script>
+</body>
+</html>
