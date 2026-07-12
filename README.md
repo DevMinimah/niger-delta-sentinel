@@ -45,9 +45,7 @@ The core Python processing engine is currently operational and capable of:
 
 ## 🤝 Contributing & License
 This project is developed as an independent research initiative.
-
     ```
 **Copyright & License:**<br>
-Copyright © 2026 Minimah. All rights reserved.<br>
-This project is proprietary.<br>
-The source code is provided for portfolio and academic demonstration purposes only.
+Copyright © 2026 Abiegbu Minimah. All rights reserved.<br>
+This project is proprietary. The source code is provided for portfolio and academic demonstration purposes only.
