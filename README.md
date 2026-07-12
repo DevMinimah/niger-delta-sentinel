@@ -1,29 +1,27 @@
 # 🛰️ Niger Delta Sentinel
 
-**Status:** 🚧 **Phase 1 (Backend Engine) Complete** | **Phase 2 (Web Interface) In Development**
+**Status:** ✅ **Phase 2 (Web Interface) LIVE** | Phase 3 (Live API Integration) In Development
 
 ## 🌍 Mission
-Niger Delta Sentinel is an automated **OSINT (Open-Source Intelligence)** and **GEOINT (Geospatial Intelligence)** engine designed to monitor ecological degradation in the Niger Delta. 
+Niger Delta Sentinel is an automated **OSINT (Open-Source Intelligence)** and **GEOINT (Geospatial Intelligence)** platform designed to monitor ecological degradation in the Niger Delta. 
 
 By leveraging satellite imagery and advanced spectral analysis, this project aims to provide verifiable, independent data on deforestation and oil pollution to support environmental governance and community justice.
 
-## 🛠️ Current Capabilities (Phase 1)
-The core Python processing engine is currently operational and capable of:
-*   **NDVI Calculation:** Computing the Normalized Difference Vegetation Index from Sentinel-2 multispectral imagery.
-*   **Vegetation Health Analysis:** Automatically categorizing pixels into Healthy, Sparse, or Degraded vegetation.
-*   **Statistical Reporting:** Generating precise data on the percentage of land cover changes.
-*   **Synthetic Data Generation:** Includes a testing pipeline for validating algorithms without requiring heavy data downloads.
+##  Live Demo
+🔗 **Try it now:** https://niger-delta-sentinel.onrender.com
 
-## 🗺️ Roadmap (Upcoming Features)
-*   **Web Dashboard:** A user-friendly interface for NGOs and journalists to upload imagery and view results (FastAPI + Leaflet.js).
-*   **Live API Integration:** Automated fetching of the latest Sentinel-2 data from the Copernicus Data Space.
-*   **Alert System:** Automated alerts for rapid deforestation events.
+## 🛠️ Current Capabilities (Phase 1 & 2 Complete)
+✅ **NDVI Calculation Engine:** Computing the Normalized Difference Vegetation Index from Sentinel-2 multispectral imagery.  
+✅ **Web Interface:** User-friendly FastAPI + Leaflet.js dashboard for uploading and analyzing satellite imagery.  
+✅ **Geospatial Visualization:** Interactive map overlay showing vegetation health with geographic accuracy.  
+✅ **Statistical Reporting:** Automated categorization and percentage analysis of vegetation health.  
+✅ **Synthetic Data Generator:** Testing pipeline for validating algorithms.
 
-## 💻 Tech Stack
-*   **Core:** Python 3.10
-*   **Geospatial:** Rasterio, NumPy, GeoPandas
-*   **Visualization:** Matplotlib, Leaflet.js (Planned)
-*   **Backend:** FastAPI (Planned)
+## 🗺️ Roadmap (Phase 3 - Upcoming)
+- **Live API Integration:** Automated fetching of the latest Sentinel-2 data from Copernicus Data Space.
+- **Scheduled Monitoring:** Weekly automated deforestation reports.
+- **Alert System:** Real-time notifications for rapid vegetation loss.
+- **Multi-Index Support:** Add EVI, SAVI, and other vegetation indices.
 
 ## 🚀 Installation & Usage
 
