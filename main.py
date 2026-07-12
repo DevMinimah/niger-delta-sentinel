@@ -14,6 +14,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 # Import our core GIS processing engine
 from ndvi_processor import calculate_ndvi, visualize_ndvi, categorize_vegetation
@@ -40,6 +41,10 @@ os.makedirs("uploads", exist_ok=True)
 # Mount the uploads folder as static files so the frontend can access the generated PNGs
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+@app.get("/favicon.svg")
+async def favicon():
+    return FileResponse("favicon.svg")
+    
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
