@@ -1,45 +1,48 @@
-# 🛰️ Niger Delta Sentinel
+# 🛰️ Niger Delta Sentinel - OSINT/GEOINT Engine
 
-**Status:** ✅ **Phase 2 (Web Interface) LIVE** | Phase 3 (Live API Integration) In Development
+**Automated ecological monitoring platform using live satellite imagery from the European Space Agency's Copernicus program.**
 
-## 🌍 Mission
-Niger Delta Sentinel is an automated **OSINT (Open-Source Intelligence)** and **GEOINT (Geospatial Intelligence)** platform designed to monitor ecological degradation in the Niger Delta. 
+##  Features
+- **Live Satellite Data Integration**: Fetches latest Sentinel-2 imagery directly from Copernicus Data Space Ecosystem
+- **Real-Time NDVI Analysis**: Processes 120+ million pixels to calculate vegetation health indices
+- **Interactive Web Dashboard**: Professional Leaflet.js map with automated geospatial visualization
+- **Bandwidth Optimization**: Intelligent caching system prevents redundant downloads
+- **Cloud-Native Architecture**: FastAPI backend with async processing
 
-By leveraging satellite imagery and advanced spectral analysis, this project aims to provide verifiable, independent data on deforestation and oil pollution to support environmental governance and community justice.
+## 🚀 Live Demo
+- **Link**: https://niger-delta-sentinel.onrender.com/
 
-##  Live Demo
-🔗 **Try it now:** https://niger-delta-sentinel.onrender.com
+## 📸 Demo Screenshot
+![Niger Delta Sentinel Dashboard](screenshots/dashboard.png)
 
-## 🛠️ Current Capabilities (Phase 1 & 2 Complete)
-✅ **NDVI Calculation Engine:** Computing the Normalized Difference Vegetation Index from Sentinel-2 multispectral imagery.  
-✅ **Web Interface:** User-friendly FastAPI + Leaflet.js dashboard for uploading and analyzing satellite imagery.  
-✅ **Geospatial Visualization:** Interactive map overlay showing vegetation health with geographic accuracy.  
-✅ **Statistical Reporting:** Automated categorization and percentage analysis of vegetation health.  
-✅ **Synthetic Data Generator:** Testing pipeline for validating algorithms.
+## 🛠️ Tech Stack
+- **Backend**: FastAPI (Python 3.13)
+- **Frontend**: Leaflet.js + Vanilla JavaScript
+- **Geospatial**: Rasterio, NumPy, GDAL
+- **Data Source**: ESA Copernicus Sentinel-2 L2A
+- **Authentication**: OAuth2 (CDSE)
 
-## 🗺️ Roadmap (Phase 3 - Upcoming)
-- **Live API Integration:** Automated fetching of the latest Sentinel-2 data from Copernicus Data Space.
-- **Scheduled Monitoring:** Weekly automated deforestation reports.
-- **Alert System:** Real-time notifications for rapid vegetation loss.
-- **Multi-Index Support:** Add EVI, SAVI, and other vegetation indices.
+## 📊 How It Works
+1. Authenticates with Copernicus Data Space via OAuth2
+2. Queries OData API for latest cloud-free Sentinel-2 scene over Niger Delta
+3. Downloads ~1GB satellite archive and extracts Red/NIR bands
+4. Calculates NDVI (Normalized Difference Vegetation Index)
+5. Generates georeferenced visualization and statistics
+6. Displays results on interactive web map
 
-## 🚀 Installation & Usage
+## 🌍 Use Cases
+- Environmental monitoring in the Niger Delta
+- Vegetation health assessment
+- Deforestation detection
+- Agricultural monitoring
+- Disaster response and damage assessment
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/DevMinimah/niger-delta-sentinel.git
-    cd niger-delta-sentinel
-    ```
+## 🔧 Installation
+```bash
+git clone https://github.com/Devminimah/niger-delta-sentinel.git
+cd niger-delta-sentinel
+pip install -r requirements.txt
 
-2.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3.  **Run the NDVI Processor:**
-    ```bash
-    python ndvi_processor.py data/test_image.tif
-    ```
 
 ## 🤝 Contributing & License
 
