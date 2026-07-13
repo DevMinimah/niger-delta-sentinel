@@ -14,6 +14,7 @@ import logging
 from typing import Tuple, Dict, Optional
 import numpy as np
 import rasterio
+from rasterio.warp import transform_bounds
 from rasterio.errors import RasterioIOError
 import matplotlib.pyplot as plt
 
@@ -38,20 +39,6 @@ def calculate_ndvi(
 ) -> Tuple[np.ndarray, dict]:
     """
     Reads a multi-band GeoTIFF and calculates the NDVI.
-    
-    Args:
-        file_path (str): Path to the multi-band GeoTIFF file.
-        red_band_idx (int): 1-based index of the Red band. Defaults to Sentinel-2 Band 4.
-        nir_band_idx (int): 1-based index of the NIR band. Defaults to Sentinel-2 Band 8.
-        
-    Returns:
-        Tuple[np.ndarray, dict]: A tuple containing the NDVI numpy array 
-                                 and a dictionary of raster metadata.
-                                 
-    Raises:
-        FileNotFoundError: If the specified file does not exist.
-        ValueError: If the file does not contain the required bands.
-        RasterioIOError: If the file is corrupted or cannot be read.
     """
     logger.info(f"Initiating NDVI calculation for: {file_path}")
     
@@ -69,18 +56,19 @@ def calculate_ndvi(
                     f"for Red (Band {red_band_idx}) and NIR (Band {nir_band_idx})."
                 )
             
-            # Read bands and cast to float32 immediately. 
-            # WHY: Sentinel-2 data is typically uint16. Subtracting uint16 arrays 
-            # causes underflow errors (e.g., 100 - 200 wraps around to 65436).
+            # Read bands and cast to float32 immediately to prevent underflow
             red = src.read(red_band_idx).astype(np.float32)
             nir = src.read(nir_band_idx).astype(np.float32)
+            
+            # 🌍 FIX: Convert UTM Meters to Lat/Lng (WGS84) for Leaflet
+            wgs84_bounds = transform_bounds(src.crs, "EPSG:4326", *src.bounds)
             
             metadata = {
                 "crs": str(src.crs),
                 "transform": src.transform,
                 "width": src.width,
                 "height": src.height,
-                "bounds": src.bounds
+                "bounds": wgs84_bounds  # Now sends correct Lat/Lng degrees!
             }
             
     except RasterioIOError as e:
@@ -91,13 +79,10 @@ def calculate_ndvi(
     logger.info("Computing NDVI values...")
     denominator = nir + red
     
-    # Handle division by zero (occurs over deep water or sensor anomalies)
-    # WHY: We use np.where instead of np.errstate to explicitly map zero-denominator 
-    # pixels to NaN. This prevents silent data corruption and ensures water/clouds 
-    # are excluded from our vegetation statistics.
+    # Handle division by zero
     ndvi = np.where(denominator == 0, np.nan, (nir - red) / denominator)
     
-    # Clip values to the theoretical NDVI range [-1, 1] to handle sensor noise
+    # Clip values to the theoretical NDVI range [-1, 1]
     ndvi = np.clip(ndvi, -1.0, 1.0)
     
     logger.info("NDVI calculation completed successfully.")
@@ -117,6 +102,14 @@ def visualize_ndvi(
         output_path (str): File path to save the generated PNG image.
         title (str): Title for the plot.
     """
+    # Downsample massive satellite images to prevent Matplotlib memory crashes
+    max_dim = 2048
+    h, w = ndvi_array.shape
+    if h > max_dim or w > max_dim:
+        scale = max(h, w) / max_dim
+        ndvi_array = ndvi_array[::int(scale), ::int(scale)]
+        logger.info(f"Downsampled image from {h}x{w} to {ndvi_array.shape[0]}x{ndvi_array.shape[1]} for web visualization.")
+    
     logger.info(f"Generating visualization and saving to: {output_path}")
     
     fig, ax = plt.subplots(figsize=(12, 10))
@@ -132,7 +125,7 @@ def visualize_ndvi(
     ax.axis('off') # Hide axes for a clean map look
     
     plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    plt.savefig(output_path, dpi=100, bbox_inches='tight')
     plt.close(fig)
     
     logger.info("Visualization saved successfully.")

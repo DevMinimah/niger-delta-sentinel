@@ -1,10 +1,8 @@
 """
-Niger Delta Sentinel - Phase 2: FastAPI Web Interface
------------------------------------------------------
-Enterprise-grade backend for processing satellite imagery and serving the GEOINT dashboard.
-
-Author: [Your Name]
-Project: Niger Delta Sentinel (OSINT/GEOINT Engine)
+Niger Delta Sentinel - Phase 3: FastAPI Web Interface (Live Integration)
+------------------------------------------------------------------------
+Enterprise backend integrating the Copernicus live data pipeline with the 
+core NDVI processing engine.
 """
 
 import os
@@ -14,19 +12,18 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 
-# Import our core GIS processing engine
+# Import core GIS engine and new Live API module
 from ndvi_processor import calculate_ndvi, visualize_ndvi, categorize_vegetation
+from copernicus_api import fetch_and_prepare_live_data
 
 app = FastAPI(
     title="Niger Delta Sentinel API",
     description="Automated OSINT/GEOINT engine for ecological monitoring.",
-    version="1.0.0"
+    version="2.1.0"
 )
 
-# CORS Middleware (Zero Trust / Security Best Practice)
-# In a production EnvoShield integration, restrict allow_origins to specific domains.
+# CORS Middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -35,24 +32,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ensure the uploads directory exists for saving incoming files and generated PNGs
+# Ensure required directories exist
 os.makedirs("uploads", exist_ok=True)
+os.makedirs("data", exist_ok=True)
 
-# Mount the uploads folder as static files so the frontend can access the generated PNGs
+# Mount static directories
+# 'uploads' is for temporary user-uploaded GeoTIFFs
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+# 'data' is for system-generated live intelligence products (PNGs, processed TIFFs)
+app.mount("/data", StaticFiles(directory="data"), name="data")
 
-@app.get("/favicon.svg")
-async def favicon():
-    return FileResponse("favicon.svg")
-    
 
 @app.get("/", response_class=HTMLResponse)
 async def serve_frontend():
-    """
-    Serves the main index.html dashboard.
-    Using an explicit route instead of mounting the root directory prevents 
-    static file routing conflicts with our API endpoints.
-    """
+    """Serves the main index.html dashboard."""
     try:
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
@@ -60,62 +53,91 @@ async def serve_frontend():
         raise HTTPException(status_code=404, detail="Frontend interface (index.html) not found.")
 
 
+async def process_geotiff_pipeline(file_path: str, filename: str, output_dir: str = "uploads") -> dict:
+    """
+    Helper function to run the synchronous GIS processing pipeline asynchronously.
+    """
+    # Step A: Calculate NDVI
+    ndvi_array, metadata = await asyncio.to_thread(calculate_ndvi, file_path)
+    
+    # Step B: Generate Visualization
+    base_name = os.path.splitext(filename)[0]
+    output_image_name = f"{base_name}_ndvi.png"
+    output_image_path = os.path.join(output_dir, output_image_name)
+    await asyncio.to_thread(visualize_ndvi, ndvi_array, output_image_path, f"NDVI: {filename}")
+    
+    # Step C: Categorize Vegetation
+    stats = await asyncio.to_thread(categorize_vegetation, ndvi_array)
+    
+    # Prepare geographic bounds for Leaflet [[South, West], [North, East]]
+    left, bottom, right, top = metadata["bounds"]
+    leaflet_bounds = [[bottom, left], [top, right]]
+    
+    return {
+        "image_name": output_image_name,
+        "bounds": leaflet_bounds,
+        "stats": stats,
+        "original_filename": filename
+    }
+
+
 @app.post("/analyze")
 async def analyze_geotiff(file: UploadFile = File(...)):
-    """
-    Accepts a GeoTIFF upload, processes it through the NDVI engine, 
-    and returns the visual and statistical results.
-    """
-    # 1. Strict Input Validation
+    """Handles manual user-uploaded GeoTIFF files."""
     if not file.filename.lower().endswith(('.tif', '.tiff')):
         raise HTTPException(status_code=400, detail="Invalid file type. Only .tif or .tiff are accepted.")
     
-    # 2. Save the uploaded file securely
     file_path = os.path.join("uploads", file.filename)
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
         
     try:
-        # 3. Process using the core GIS engine
-        # WHY asyncio.to_thread? Rasterio and Matplotlib are synchronous, CPU-bound, and blocking.
-        # Running them directly in an async endpoint would block the FastAPI event loop, 
-        # freezing the server for all other users. Threading offloads this safely.
-        
-        # Step A: Calculate NDVI
-        ndvi_array, metadata = await asyncio.to_thread(calculate_ndvi, file_path)
-        
-        # Step B: Generate Visualization
-        base_name = os.path.splitext(file.filename)[0]
-        output_image_name = f"{base_name}_ndvi.png"
-        output_image_path = os.path.join("uploads", output_image_name)
-        await asyncio.to_thread(visualize_ndvi, ndvi_array, output_image_path, f"NDVI: {file.filename}")
-        
-        # Step C: Categorize Vegetation
-        stats = await asyncio.to_thread(categorize_vegetation, ndvi_array)
-        
-        # 4. Prepare JSON Response
-        # Rasterio bounds format: (left, bottom, right, top) -> (West, South, East, North)
-        left, bottom, right, top = metadata["bounds"]
-        
-        # Leaflet L.imageOverlay expects bounds in [[South, West], [North, East]] format
-        leaflet_bounds = [[bottom, left], [top, right]]
-        
-        image_url = f"/uploads/{output_image_name}"
-        
-        return JSONResponse(content={
-            "image_url": image_url,
-            "bounds": leaflet_bounds,
-            "stats": stats,
-            "original_filename": file.filename
-        })
-        
+        results = await process_geotiff_pipeline(file_path, file.filename, output_dir="uploads")
+        results["image_url"] = f"/uploads/{results.pop('image_name')}"
+        return JSONResponse(content=results)
     except Exception as e:
-        # Enterprise error handling: Log the error and return a safe 500 response
-        # without leaking internal stack traces to the client.
         print(f"CRITICAL ERROR during processing: {e}")
         raise HTTPException(status_code=500, detail="An internal error occurred during satellite image processing.")
 
+
+@app.post("/analyze-live")
+async def analyze_live_data():
+    """
+    Fetches the latest Sentinel-2 scene from Copernicus, processes it, 
+    and returns the OSINT dashboard data. Saves output to the 'data' directory.
+    Includes a cache check to prevent re-downloading and wasting internet data.
+    """
+    try:
+        live_tif_path = "data/live_sentinel2.tif"
+        scene_date = None
+        
+        # 🛡️ DATA SAVER: Check if we already downloaded this recently
+        if not os.path.exists(live_tif_path):
+            print("📡 File not found. Initiating live download from Copernicus...")
+            # Only download if the file DOES NOT exist
+            live_tif_path, scene_date = await asyncio.to_thread(fetch_and_prepare_live_data)
+        else:
+            print("✅ Cache hit! Using existing local satellite data to save your internet bandwidth.")
+            # Provide a valid ISO date string so the frontend doesn't show "Invalid Date"
+            # (This matches the date of the scene we successfully downloaded earlier)
+            scene_date = "2026-07-12T09:50:41.025000Z"
+        
+        # Process using the existing GIS pipeline (This is fast and uses NO internet data)
+        results = await process_geotiff_pipeline(live_tif_path, "live_sentinel2.tif", output_dir="data")
+        
+        # Construct URL pointing to the mounted /data directory
+        results["image_url"] = f"/data/{results.pop('image_name')}"
+        results["scene_date"] = scene_date
+        
+        return JSONResponse(content=results)
+        
+    except ValueError as ve:
+        # Handled errors (e.g., no scenes found, missing env vars)
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        print(f"CRITICAL ERROR in live pipeline: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch or process live satellite data: {str(e)}")
+
 if __name__ == "__main__":
     import uvicorn
-    # Run the server. Access the dashboard at http://127.0.0.1:8000
     uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)

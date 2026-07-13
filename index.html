@@ -4,173 +4,91 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Niger Delta Sentinel | OSINT/GEOINT Engine</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
     
+    <!-- 
+      CUSTOM OSINT FAVICON (Inline SVG Data URI)
+      Designed to match the dark theme (#0f172a) and accent green (#10b981).
+      Represents a GEOINT radar/target crosshair. No external files required.
+    -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%20100%20100%27%3E%3Crect%20width%3D%27100%27%20height%3D%27100%27%20rx%3D%2720%27%20fill%3D%27%230f172a%27%2F%3E%3Ccircle%20cx%3D%2750%27%20cy%3D%2750%27%20r%3D%2730%27%20fill%3D%27none%27%20stroke%3D%27%2310b981%27%20stroke-width%3D%278%27%2F%3E%3Ccircle%20cx%3D%2750%27%20cy%3D%2750%27%20r%3D%2710%27%20fill%3D%27%2310b981%27%2F%3E%3Cpath%20d%3D%27M50%2020%20L50%205%20M50%2080%20L50%2095%20M20%2050%20L5%2050%20M80%2050%20L95%2050%27%20stroke%3D%27%2310b981%27%20stroke-width%3D%276%27%20stroke-linecap%3D%27round%27%2F%3E%3C%2Fsvg%3E">
+
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    
     <style>
-        /* Dark Theme EnvoShield Style */
         :root {
             --bg-primary: #0f172a;
             --bg-secondary: #1e293b;
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --accent-green: #10b981;
+            --accent-blue: #38bdf8;
             --accent-red: #ef4444;
             --accent-yellow: #f59e0b;
             --border-color: #334155;
         }
 
-        body {
-            margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
-
-        header {
-            background-color: var(--bg-secondary);
-            padding: 1rem 2rem;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 1.5rem;
-            color: var(--accent-green);
-        }
-
-        .container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        .sidebar {
-            width: 350px;
-            background-color: var(--bg-secondary);
-            padding: 1.5rem;
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-            overflow-y: auto;
-        }
-
-        .upload-section {
-            background-color: var(--bg-primary);
-            padding: 1.5rem;
-            border-radius: 8px;
-            border: 1px dashed var(--border-color);
-            text-align: center;
-        }
-
-        .upload-btn {
-            background-color: var(--accent-green);
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background 0.3s;
-            width: 100%;
-            margin-top: 1rem;
-        }
-
-        .upload-btn:hover {
-            background-color: #059669;
-        }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg-primary); color: var(--text-primary); display: flex; flex-direction: column; height: 100vh; }
+        header { background-color: var(--bg-secondary); padding: 1rem 2rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+        header h1 { margin: 0; font-size: 1.5rem; color: var(--accent-green); }
+        .container { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 350px; background-color: var(--bg-secondary); padding: 1.5rem; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 1.5rem; overflow-y: auto; }
+        .upload-section { background-color: var(--bg-primary); padding: 1.5rem; border-radius: 8px; border: 1px dashed var(--border-color); text-align: center; }
         
-        .upload-btn:disabled {
-            background-color: #475569;
-            cursor: not-allowed;
-        }
+        .btn { color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; transition: background 0.3s; width: 100%; margin-top: 0.5rem; font-size: 0.95rem; }
+        .btn-green { background-color: var(--accent-green); }
+        .btn-green:hover { background-color: #059669; }
+        .btn-blue { background-color: var(--accent-blue); }
+        .btn-blue:hover { background-color: #0284c7; }
+        .btn:disabled { background-color: #475569; cursor: not-allowed; }
 
-        #file-input {
-            display: none;
-        }
-
-        .status-msg {
-            margin-top: 1rem;
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-            min-height: 20px;
-        }
-
-        .stats-panel {
-            background-color: var(--bg-primary);
-            padding: 1.5rem;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            display: none; /* Hidden initially */
-        }
-
-        .stats-panel h3 {
-            margin-top: 0;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 0.5rem;
-        }
-
-        .stat-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 0.75rem 0;
-            font-size: 0.95rem;
-        }
-
-        .stat-label {
-            color: var(--text-secondary);
-        }
-
-        .stat-value {
-            font-weight: bold;
-        }
-
+        #file-input { display: none; }
+        .status-msg { margin-top: 1rem; font-size: 0.9rem; color: var(--text-secondary); min-height: 20px; }
+        .stats-panel { background-color: var(--bg-primary); padding: 1.5rem; border-radius: 8px; border: 1px solid var(--border-color); display: none; }
+        .stats-panel h3 { margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+        .stat-row { display: flex; justify-content: space-between; margin: 0.75rem 0; font-size: 0.95rem; }
+        .stat-label { color: var(--text-secondary); }
+        .stat-value { font-weight: bold; }
         .healthy { color: var(--accent-green); }
         .sparse { color: var(--accent-yellow); }
         .bare { color: var(--accent-red); }
-
-        #map {
-            flex: 1;
-            background-color: #000; /* Fallback */
-        }
-
-        /* Custom Leaflet Dark Mode Tweaks */
-        .leaflet-container {
-            background: #0f172a;
-        }
+        
+        /* FIX APPLIED: Added height: 100% to guarantee Leaflet initializes correctly in Flexbox */
+        #map { flex: 1; height: 100%; background-color: #000; }
+        .leaflet-container { background: #0f172a; }
     </style>
 </head>
 <body>
 
     <header>
         <h1>🛰️ Niger Delta Sentinel</h1>
-        <span style="color: var(--text-secondary); font-size: 0.9rem;">OSINT/GEOINT Engine v1.0</span>
+        <span style="color: var(--text-secondary); font-size: 0.9rem;">OSINT/GEOINT Engine v2.1 (Live)</span>
     </header>
 
     <div class="container">
         <aside class="sidebar">
             <div class="upload-section">
-                <h3>Upload Satellite Imagery</h3>
-                <p style="color: var(--text-secondary); font-size: 0.9rem;">Select a Sentinel-2 GeoTIFF (.tif)</p>
+                <h3>Data Ingestion</h3>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">Upload local GeoTIFF or fetch live Sentinel-2 data.</p>
+                
                 <input type="file" id="file-input" accept=".tif, .tiff">
-                <button class="upload-btn" id="upload-btn" onclick="document.getElementById('file-input').click()">
-                    Choose File
+                <button class="btn btn-green" id="upload-btn" onclick="document.getElementById('file-input').click()">
+                    📁 Upload Local File
                 </button>
-                <div class="status-msg" id="status-msg">Awaiting file selection...</div>
+                
+                <button class="btn btn-blue" id="live-btn" onclick="fetchLiveData()">
+                    🛰️ Fetch Latest Live Data
+                </button>
+                
+                <div class="status-msg" id="status-msg">Awaiting data source...</div>
             </div>
 
             <div class="stats-panel" id="stats-panel">
                 <h3>Vegetation Health Statistics</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Scene Date:</span>
+                    <span class="stat-value" id="stat-date" style="color: var(--accent-blue);">-</span>
+                </div>
                 <div class="stat-row">
                     <span class="stat-label">Total Valid Pixels:</span>
                     <span class="stat-value" id="stat-total">-</span>
@@ -193,88 +111,110 @@
         <main id="map"></main>
     </div>
 
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
     <script>
-        // Initialize Leaflet Map
-        // Default view: Niger Delta region (Port Harcourt approx coordinates)
+        // Initialize Map
         const map = L.map('map').setView([4.8, 5.9], 8);
-
-        // Dark Matter Tile Layer for OSINT aesthetic
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 20
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 19
         }).addTo(map);
 
         let currentOverlay = null;
 
-        // File Input Listener
+        // REUSABLE FUNCTION: Updates the map overlay and statistics panel
+        function renderResults(data) {
+            if (currentOverlay) map.removeLayer(currentOverlay);
+
+            currentOverlay = L.imageOverlay(data.image_url, data.bounds, { opacity: 0.8 }).addTo(map);
+            map.fitBounds(currentOverlay.getBounds());
+
+            // Update Stats
+            document.getElementById('stat-date').innerText = data.scene_date ? new Date(data.scene_date).toLocaleDateString() : 'Local Upload';
+            document.getElementById('stat-total').innerText = data.stats.total_valid_pixels.toLocaleString();
+            document.getElementById('stat-healthy').innerText = `${data.stats.healthy_pct.toFixed(2)}%`;
+            document.getElementById('stat-sparse').innerText = `${data.stats.sparse_pct.toFixed(2)}%`;
+            document.getElementById('stat-bare').innerText = `${data.stats.bare_pct.toFixed(2)}%`;
+            
+            document.getElementById('stats-panel').style.display = 'block';
+        }
+
+        // LOCAL FILE UPLOAD LOGIC
         document.getElementById('file-input').addEventListener('change', async function(event) {
             const file = event.target.files[0];
             if (!file) return;
 
             const statusMsg = document.getElementById('status-msg');
             const uploadBtn = document.getElementById('upload-btn');
-            const statsPanel = document.getElementById('stats-panel');
 
-            // UI Feedback
-            statusMsg.innerText = `Uploading and processing ${file.name}... This may take a moment.`;
-            statusMsg.style.color = '#38bdf8'; // Blue
+            statusMsg.innerText = `Processing ${file.name}...`;
+            statusMsg.style.color = '#38bdf8';
             uploadBtn.disabled = true;
-            uploadBtn.innerText = 'Processing...';
 
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                const response = await fetch('/analyze', {
-                    method: 'POST',
-                    body: formData
-                });
+                const response = await fetch('/analyze', { method: 'POST', body: formData });
+                if (!response.ok) throw new Error((await response.json()).detail || 'Server error');
+                
+                const data = await response.json();
+                renderResults(data);
+                
+                statusMsg.innerText = `Successfully processed ${file.name}.`;
+                statusMsg.style.color = '#10b981';
+            } catch (error) {
+                statusMsg.innerText = `Error: ${error.message}`;
+                statusMsg.style.color = '#ef4444';
+            } finally {
+                uploadBtn.disabled = false;
+            }
+        });
+
+        // ==========================================
+        // LIVE DATA FETCH LOGIC (FIXED & OPTIMIZED)
+        // ==========================================
+        async function fetchLiveData() {
+            const statusMsg = document.getElementById('status-msg');
+            const liveBtn = document.getElementById('live-btn');
+
+            // 1. Handle Loading State
+            statusMsg.innerText = "Connecting to Copernicus Data Space... Downloading live scene (this may take 1-2 minutes)...";
+            statusMsg.style.color = '#38bdf8';
+            liveBtn.disabled = true;
+            liveBtn.innerText = 'Downloading...';
+
+            try {
+                // 2. Send POST request to the new endpoint
+                const response = await fetch('/analyze-live', { method: 'POST' });
 
                 if (!response.ok) {
                     const errData = await response.json();
-                    throw new Error(errData.detail || 'Server error occurred.');
+                    throw new Error(errData.detail || 'Server failed to fetch live data.');
                 }
 
                 const data = await response.json();
 
-                // Remove previous overlay if exists
-                if (currentOverlay) {
-                    map.removeLayer(currentOverlay);
-                }
+                // 3. REUSE THE EXISTING RENDER FUNCTION
+                // This correctly handles the locally scoped 'currentOverlay' variable
+                // and updates both the Leaflet map and the DOM statistics panel.
+                renderResults(data);
 
-                // Add new NDVI overlay
-                // data.bounds is [[South, West], [North, East]]
-                currentOverlay = L.imageOverlay(data.image_url, data.bounds, {
-                    opacity: 0.8
-                }).addTo(map);
-
-                // Fit map to the new bounds
-                map.fitBounds(currentOverlay.getBounds());
-
-                // Update Statistics Panel
-                document.getElementById('stat-total').innerText = data.stats.total_valid_pixels.toLocaleString();
-                document.getElementById('stat-healthy').innerText = `${data.stats.healthy_pct.toFixed(2)}%`;
-                document.getElementById('stat-sparse').innerText = `${data.stats.sparse_pct.toFixed(2)}%`;
-                document.getElementById('stat-bare').innerText = `${data.stats.bare_pct.toFixed(2)}%`;
-                
-                statsPanel.style.display = 'block';
-
-                statusMsg.innerText = `Successfully processed ${file.name}.`;
-                statusMsg.style.color = '#10b981'; // Green
+                // 4. Success Feedback
+                const formattedDate = data.scene_date ? new Date(data.scene_date).toLocaleDateString() : 'Unknown';
+                statusMsg.innerText = `Successfully processed live scene acquired on ${formattedDate}.`;
+                statusMsg.style.color = '#10b981';
 
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Live Fetch Error:', error);
                 statusMsg.innerText = `Error: ${error.message}`;
-                statusMsg.style.color = '#ef4444'; // Red
+                statusMsg.style.color = '#ef4444';
             } finally {
-                uploadBtn.disabled = false;
-                uploadBtn.innerText = 'Choose File';
+                // 5. Reset Loading State
+                liveBtn.disabled = false;
+                liveBtn.innerText = '🛰️ Fetch Latest Live Data';
             }
-        });
+        }
     </script>
 </body>
 </html>
