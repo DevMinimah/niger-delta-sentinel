@@ -51,7 +51,7 @@ def get_access_token() -> str:
         "password": password
     }
     
-    response = requests.post(TOKEN_URL, data=payload, timeout=30)
+    response = requests.post(TOKEN_URL, data=payload, timeout=30, verify=certifi.where())
     response.raise_for_status()
     
     token = response.json().get("access_token")
@@ -88,7 +88,7 @@ def search_latest_scene(token: str) -> dict:
     }
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{ODATA_URL}/Products", params=params, headers=headers, timeout=60)
+    response = requests.get(f"{ODATA_URL}/Products", params=params, headers=headers, timeout=60, verify=certifi.where())
     response.raise_for_status()
     
     products = response.json().get("value", [])
@@ -106,7 +106,7 @@ def search_latest_scene(token: str) -> dict:
             "$top": 1,
             "$expand": "Attributes"
         }
-        response = requests.get(f"{ODATA_URL}/Products", params=params_simple, headers=headers, timeout=60)
+        response = requests.get(f"{ODATA_URL}/Products", params=params_simple, headers=headers, timeout=60, verify=certifi.where())
         response.raise_for_status()
         products = response.json().get("value", [])
         
@@ -146,7 +146,7 @@ def download_and_prepare_scene(scene: dict, token: str, output_path: str = "data
     
     headers = {"Authorization": f"Bearer {token}"}
     
-    with requests.get(download_url, headers=headers, stream=True, timeout=300) as r:
+    with requests.get(download_url, headers=headers, stream=True, timeout=300, verify=certifi.where()) as r:
         r.raise_for_status()
         zip_path = "data/temp_sentinel2.zip"
         os.makedirs("data", exist_ok=True)
