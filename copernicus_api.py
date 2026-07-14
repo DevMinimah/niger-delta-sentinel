@@ -10,6 +10,8 @@ import zipfile
 import logging
 import numpy as np
 import rasterio
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 os.environ['SSL_CERT_FILE'] = certifi.where()
@@ -140,21 +142,37 @@ def download_and_prepare_scene(scene: dict, token: str, output_path: str = "data
     product_uuid = scene["id"]
     scene_name = scene["name"]
     
-    # Download using UUID
     download_url = f"https://zipper.dataspace.copernicus.eu/odata/v1/Products({product_uuid})/$value"
     logger.info(f"Initiating download for {scene_name}...")
     
     headers = {"Authorization": f"Bearer {token}"}
     
-    with requests.get(download_url, headers=headers, stream=True, timeout=300, verify=certifi.where()) as r:
-        r.raise_for_status()
-        zip_path = "data/temp_sentinel2.zip"
-        os.makedirs("data", exist_ok=True)
+    # 🛡️ RESILIENCE FIX: Create a session with automatic retries for dropped connections
+    session = requests.Session()
+    retry_strategy = Retry(
+        total=3, 
+        backoff_factor=2, 
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET"]
+    )
+    adapter = HTTPAdapter(max_retries=retry_strategy)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    
+    try:
+        with session.get(download_url, headers=headers, stream=True, timeout=300, verify=certifi.where()) as r:
+            r.raise_for_status()
+            zip_path = "data/temp_sentinel2.zip"
+            os.makedirs("data", exist_ok=True)
+            
+            with open(zip_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    if chunk: # filter out keep-alive new chunks
+                        f.write(chunk)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Download failed or interrupted: {e}")
+        raise
         
-        with open(zip_path, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-                
     logger.info("Download complete. Extracting required bands...")
     
     extract_dir = "data/temp_extract"
@@ -178,32 +196,21 @@ def download_and_prepare_scene(scene: dict, token: str, output_path: str = "data
             
         logger.info("Bands extracted. Converting JPEG2000 to multi-band GeoTIFF...")
         
-        # 🛡️ MEMORY FIX: Downsample to web-friendly resolution (2048x2048)
-        # This reduces RAM usage from ~2GB to ~10MB, preventing Render crashes.
         TARGET_SIZE = (2048, 2048)
         
         with rasterio.open(b04_path) as src_red:
-            red_data = src_red.read(
-                1, 
-                out_shape=TARGET_SIZE, 
-                resampling=rasterio.enums.Resampling.average
-            )
+            red_data = src_red.read(1, out_shape=TARGET_SIZE, resampling=rasterio.enums.Resampling.average)
             profile = src_red.profile.copy()
             original_bounds = src_red.bounds
             
         with rasterio.open(b08_path) as src_nir:
-            nir_data = src_nir.read(
-                1, 
-                out_shape=TARGET_SIZE, 
-                resampling=rasterio.enums.Resampling.average
-            )
+            nir_data = src_nir.read(1, out_shape=TARGET_SIZE, resampling=rasterio.enums.Resampling.average)
             
         height, width = TARGET_SIZE
         bands_data = np.zeros((8, height, width), dtype=np.uint16)
         bands_data[3] = red_data
         bands_data[7] = nir_data
         
-        # Update profile for the new, smaller dimensions
         profile.update(
             count=8,
             dtype='uint16',
