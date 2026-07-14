@@ -4,7 +4,7 @@ Niger Delta Sentinel - Phase 3: FastAPI Web Interface (Live Integration)
 Enterprise backend integrating the Copernicus live data pipeline with the 
 core NDVI processing engine.
 """
-
+from dotenv import load_dotenv
 import os
 import shutil
 import asyncio
@@ -12,6 +12,8 @@ from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+
+load_dotenv()
 
 # Import core GIS engine and new Live API module
 from ndvi_processor import calculate_ndvi, visualize_ndvi, categorize_vegetation

@@ -43,6 +43,7 @@ git clone https://github.com/Devminimah/niger-delta-sentinel.git
 cd niger-delta-sentinel
 pip install -r requirements.txt
 
+---
 
 ## 🤝 Contributing & License
 

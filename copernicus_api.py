@@ -5,12 +5,15 @@ Uses OData API (more stable than STAC) for searching and downloading Sentinel-2 
 
 import os
 import requests
+import certifi
 import zipfile
 import logging
 import numpy as np
 import rasterio
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+os.environ['SSL_CERT_FILE'] = certifi.where()
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 
 # Load environment variables securely
 load_dotenv()
