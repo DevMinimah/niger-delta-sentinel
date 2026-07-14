@@ -176,9 +176,9 @@ def download_and_prepare_scene(scene: dict, token: str, output_path: str = "data
         if not b04_path or not b08_path:
             raise FileNotFoundError("Could not locate B04 or B08 10m bands in the downloaded archive.")
             
-                logger.info("Bands extracted. Converting JPEG2000 to multi-band GeoTIFF...")
+        logger.info("Bands extracted. Converting JPEG2000 to multi-band GeoTIFF...")
         
-        # 🛡️ MEMORY FIX: Downsample to web-friendly resolution (2048x2048) 
+        # 🛡️ MEMORY FIX: Downsample to web-friendly resolution (2048x2048)
         # This reduces RAM usage from ~2GB to ~10MB, preventing Render crashes.
         TARGET_SIZE = (2048, 2048)
         
@@ -188,7 +188,6 @@ def download_and_prepare_scene(scene: dict, token: str, output_path: str = "data
                 out_shape=TARGET_SIZE, 
                 resampling=rasterio.enums.Resampling.average
             )
-            # Get original profile but we will update dimensions later
             profile = src_red.profile.copy()
             original_bounds = src_red.bounds
             
