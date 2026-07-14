@@ -176,25 +176,47 @@ def download_and_prepare_scene(scene: dict, token: str, output_path: str = "data
         if not b04_path or not b08_path:
             raise FileNotFoundError("Could not locate B04 or B08 10m bands in the downloaded archive.")
             
-        logger.info("Bands extracted. Converting JPEG2000 to multi-band GeoTIFF...")
+                logger.info("Bands extracted. Converting JPEG2000 to multi-band GeoTIFF...")
+        
+        # 🛡️ MEMORY FIX: Downsample to web-friendly resolution (2048x2048) 
+        # This reduces RAM usage from ~2GB to ~10MB, preventing Render crashes.
+        TARGET_SIZE = (2048, 2048)
         
         with rasterio.open(b04_path) as src_red:
-            red_data = src_red.read(1)
-            profile = src_red.profile
+            red_data = src_red.read(
+                1, 
+                out_shape=TARGET_SIZE, 
+                resampling=rasterio.enums.Resampling.average
+            )
+            # Get original profile but we will update dimensions later
+            profile = src_red.profile.copy()
+            original_bounds = src_red.bounds
             
         with rasterio.open(b08_path) as src_nir:
-            nir_data = src_nir.read(1)
+            nir_data = src_nir.read(
+                1, 
+                out_shape=TARGET_SIZE, 
+                resampling=rasterio.enums.Resampling.average
+            )
             
-        height, width = red_data.shape
+        height, width = TARGET_SIZE
         bands_data = np.zeros((8, height, width), dtype=np.uint16)
         bands_data[3] = red_data
         bands_data[7] = nir_data
         
+        # Update profile for the new, smaller dimensions
         profile.update(
             count=8,
             dtype='uint16',
             compress='lzw',
-            nodata=0
+            nodata=0,
+            width=width,
+            height=height,
+            transform=rasterio.transform.from_bounds(
+                original_bounds.left, original_bounds.bottom, 
+                original_bounds.right, original_bounds.top,
+                width, height
+            )
         )
         
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
