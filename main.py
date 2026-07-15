@@ -112,17 +112,19 @@ async def analyze_live_data():
     try:
         live_tif_path = "data/live_sentinel2.tif"
         scene_date = None
+        cloud_cover = 0  # 🌤️ Track cloud cover percentage
         
         # 🛡️ DATA SAVER: Check if we already downloaded this recently
         if not os.path.exists(live_tif_path):
-            print("📡 File not found. Initiating live download from Copernicus...")
+            print(" File not found. Initiating live download from Copernicus...")
             # Only download if the file DOES NOT exist
-            live_tif_path, scene_date = await asyncio.to_thread(fetch_and_prepare_live_data)
+            # Now unpacks 3 values: path, date, and cloud_cover
+            live_tif_path, scene_date, cloud_cover = await asyncio.to_thread(fetch_and_prepare_live_data)
         else:
             print("✅ Cache hit! Using existing local satellite data to save your internet bandwidth.")
             # Provide a valid ISO date string so the frontend doesn't show "Invalid Date"
-            # (This matches the date of the scene we successfully downloaded earlier)
-            scene_date = "2026-07-12T09:50:41.025000Z"
+            scene_date = "2026-07-15T09:50:41.025000Z"
+            cloud_cover = 0  # Default for cached data
         
         # Process using the existing GIS pipeline (This is fast and uses NO internet data)
         results = await process_geotiff_pipeline(live_tif_path, "live_sentinel2.tif", output_dir="data")
@@ -130,6 +132,7 @@ async def analyze_live_data():
         # Construct URL pointing to the mounted /data directory
         results["image_url"] = f"/data/{results.pop('image_name')}"
         results["scene_date"] = scene_date
+        results["cloud_cover"] = cloud_cover  # 🌤️ Add cloud cover to response
         
         return JSONResponse(content=results)
         

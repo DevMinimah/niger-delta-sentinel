@@ -115,7 +115,7 @@ def search_latest_scene(token: str) -> dict:
         if not products:
             raise ValueError("No Sentinel-2 L2A scenes found in last 90 days.")
     
-    # 🌤️ SMART CLOUD FILTERING: Find the first scene with < 30% cloud cover
+    # ️ SMART CLOUD FILTERING: Find the first scene with < 30% cloud cover
     best_scene = None
     for product in products:
         cloud_cover = None
@@ -279,7 +279,8 @@ def fetch_and_prepare_live_data() -> tuple:
         token = get_access_token()
         scene = search_latest_scene(token)
         file_path = download_and_prepare_scene(scene, token)
-        return file_path, scene["date"]
+        # 🌤️ Now returns cloud_cover as the 3rd value
+        return file_path, scene["date"], scene.get("cloud_cover", 0)
         
     except Exception as e:
         logger.error(f"Live data pipeline failed: {e}")
@@ -288,8 +289,9 @@ def fetch_and_prepare_live_data() -> tuple:
 
 if __name__ == "__main__":
     try:
-        file_path, scene_date = fetch_and_prepare_live_data()
+        file_path, scene_date, cloud_cover = fetch_and_prepare_live_data()
         print(f"\n✅ SUCCESS! Live data ready at: {file_path}")
         print(f"📅 Scene date: {scene_date}")
+        print(f"☁️ Cloud cover: {cloud_cover}%")
     except Exception as e:
         print(f"\n❌ ERROR: {e}")
