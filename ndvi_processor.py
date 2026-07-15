@@ -4,12 +4,13 @@ Niger Delta Sentinel - Phase 1: NDVI Processor
 An OSINT/GEOINT engine module for calculating the Normalized Difference 
 Vegetation Index (NDVI) from Sentinel-2 multi-band GeoTIFF imagery.
 
-Author: [Your Name]
+Author: Minimah Victory
 Project: Niger Delta Sentinel (OSINT/GEOINT Engine)
 """
 
 import os
 import sys
+import gc
 import logging
 from typing import Tuple, Dict, Optional
 import numpy as np
@@ -96,50 +97,45 @@ def visualize_ndvi(
 ) -> None:
     """
     Generates and saves a visual map of the NDVI results.
-    
-    Args:
-        ndvi_array (np.ndarray): The calculated NDVI array.
-        output_path (str): File path to save the generated PNG image.
-        title (str): Title for the plot.
     """
-    # Downsample massive satellite images to prevent Matplotlib memory crashes
-    max_dim = 2048
+    # 🛡️ CRITICAL MEMORY FIX: Force downsample to 512x512 max for web visualization.
+    # Matplotlib uses massive RAM to render large arrays. 512x512 is plenty for a web map overlay.
+    max_dim = 512
     h, w = ndvi_array.shape
     if h > max_dim or w > max_dim:
-        scale = max(h, w) / max_dim
-        ndvi_array = ndvi_array[::int(scale), ::int(scale)]
-        logger.info(f"Downsampled image from {h}x{w} to {ndvi_array.shape[0]}x{ndvi_array.shape[1]} for web visualization.")
+        step_h = int(np.ceil(h / max_dim))
+        step_w = int(np.ceil(w / max_dim))
+        ndvi_array = ndvi_array[::step_h, ::step_w]
+        logger.info(f"Downsampled visualization array from {h}x{w} to {ndvi_array.shape[0]}x{ndvi_array.shape[1]} to prevent OOM.")
     
     logger.info(f"Generating visualization and saving to: {output_path}")
     
-    fig, ax = plt.subplots(figsize=(12, 10))
+    # Use smaller figure size and lower DPI to further reduce memory footprint
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
     
     # RdYlGn colormap: Red (low/negative) -> Yellow (neutral) -> Green (high/positive)
     im = ax.imshow(ndvi_array, cmap='RdYlGn', vmin=-1.0, vmax=1.0, interpolation='nearest')
     
     # Add colorbar legend
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-    cbar.set_label('NDVI Value', rotation=270, labelpad=15, fontsize=12)
+    cbar.set_label('NDVI Value', rotation=270, labelpad=15, fontsize=10)
     
-    ax.set_title(title, fontsize=16, fontweight='bold', pad=20)
+    ax.set_title(title, fontsize=14, fontweight='bold', pad=15)
     ax.axis('off') # Hide axes for a clean map look
     
     plt.tight_layout()
     plt.savefig(output_path, dpi=100, bbox_inches='tight')
-    plt.close(fig)
     
-    logger.info("Visualization saved successfully.")
+    # CRITICAL: Close the figure and force garbage collection to free Render's RAM immediately
+    plt.close(fig)
+    gc.collect()
+    
+    logger.info("Visualization saved successfully and memory freed.")
 
 
 def categorize_vegetation(ndvi_array: np.ndarray) -> Dict[str, float]:
     """
     Categorizes NDVI pixels into vegetation health classes and calculates percentages.
-    
-    Args:
-        ndvi_array (np.ndarray): The calculated NDVI array.
-        
-    Returns:
-        Dict[str, float]: Dictionary containing counts and percentages for each category.
     """
     logger.info("Categorizing vegetation health...")
     
@@ -172,7 +168,7 @@ def categorize_vegetation(ndvi_array: np.ndarray) -> Dict[str, float]:
     print("="*50)
     print(f"  Total Valid Pixels Analyzed : {stats['total_valid_pixels']:,}")
     print("-" * 50)
-    print(f"  🟢 Healthy Vegetation (>0.4): {stats['healthy_pct']:6.2f}% ({stats['healthy_count']:>10,} px)")
+    print(f"  🟢 Healthy Vegetation (>0.4)  : {stats['healthy_pct']:6.2f}% ({stats['healthy_count']:>10,} px)")
     print(f"  🟡 Sparse Vegetation (0.2-0.4): {stats['sparse_pct']:6.2f}% ({stats['sparse_count']:>10,} px)")
     print(f"  🔴 Bare Soil/Degraded (<0.2)  : {stats['bare_pct']:6.2f}% ({stats['bare_count']:>10,} px)")
     print("="*50 + "\n")
@@ -218,4 +214,4 @@ if __name__ == "__main__":
     base_name = os.path.splitext(os.path.basename(INPUT_FILE))[0]
     OUTPUT_FILE = f"{base_name}_ndvi_output.png"
     
-    main(INPUT_FILE, output_image=OUTPUT_FILE)        
+    main(INPUT_FILE, output_image=OUTPUT_FILE)
