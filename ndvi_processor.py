@@ -61,6 +61,10 @@ def calculate_ndvi(
             red = src.read(red_band_idx).astype(np.float32)
             nir = src.read(nir_band_idx).astype(np.float32)
             
+            # 🔍 DEBUG: Log band statistics
+            logger.info(f"RED band - Min: {red.min():.2f}, Max: {red.max():.2f}, Mean: {red.mean():.2f}")
+            logger.info(f"NIR band - Min: {nir.min():.2f}, Max: {nir.max():.2f}, Mean: {nir.mean():.2f}")
+            
             # 🌍 FIX: Convert UTM Meters to Lat/Lng (WGS84) for Leaflet
             wgs84_bounds = transform_bounds(src.crs, "EPSG:4326", *src.bounds)
             
@@ -69,7 +73,7 @@ def calculate_ndvi(
                 "transform": src.transform,
                 "width": src.width,
                 "height": src.height,
-                "bounds": wgs84_bounds  # Now sends correct Lat/Lng degrees!
+                "bounds": wgs84_bounds
             }
             
     except RasterioIOError as e:
@@ -82,6 +86,10 @@ def calculate_ndvi(
     
     # Handle division by zero
     ndvi = np.where(denominator == 0, np.nan, (nir - red) / denominator)
+    
+    # 🔍 DEBUG: Log NDVI statistics
+    logger.info(f"NDVI - Min: {np.nanmin(ndvi):.3f}, Max: {np.nanmax(ndvi):.3f}, Mean: {np.nanmean(ndvi):.3f}")
+    logger.info(f"NDVI - Valid pixels: {np.sum(~np.isnan(ndvi)):,}")
     
     # Clip values to the theoretical NDVI range [-1, 1]
     ndvi = np.clip(ndvi, -1.0, 1.0)
