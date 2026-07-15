@@ -1,34 +1,32 @@
-# 🛰️ Niger Delta Sentinel - OSINT/GEOINT Engine
+# 🛰️ Niger Delta Sentinel
 
-**Automated ecological monitoring platform using live satellite imagery from the European Space Agency's Copernicus program.**
+**An OSINT/GEOINT Engine for Real-Time Ecological Monitoring**
 
-##  Features
-- **Live Satellite Data Integration**: Fetches latest Sentinel-2 imagery directly from Copernicus Data Space Ecosystem
-- **Real-Time NDVI Analysis**: Processes 120+ million pixels to calculate vegetation health indices
-- **Interactive Web Dashboard**: Professional Leaflet.js map with automated geospatial visualization
-- **Bandwidth Optimization**: Intelligent caching system prevents redundant downloads
-- **Cloud-Native Architecture**: FastAPI backend with async processing
+![Demo Screenshot](demo_screenshot.png)
+
+## 📖 Overview
+Niger Delta Sentinel is a geospatial intelligence platform that processes live Sentinel-2 satellite imagery from the European Space Agency (ESA) Copernicus Data Space. It calculates the Normalized Difference Vegetation Index (NDVI) to monitor vegetation health and ecological changes in the Niger Delta region.
 
 ## 🚀 Live Demo
-- **Link**: https://niger-delta-sentinel.onrender.com/
+**[Click here to view the live application](https://niger-delta-sentinel.onrender.com)**
 
-## 📸 Demo Screenshot
-![Niger Delta Sentinel Dashboard](screenshots/dashboard.png)
+## ️ Tech Stack
+- **Backend:** Python, FastAPI, Rasterio, NumPy
+- **Frontend:** HTML5, CSS3, Leaflet.js
+- **Data Source:** ESA Copernicus Data Space Ecosystem (OData API)
+- **Deployment:** Render Cloud
 
-## 🛠️ Tech Stack
-- **Backend**: FastAPI (Python 3.13)
-- **Frontend**: Leaflet.js + Vanilla JavaScript
-- **Geospatial**: Rasterio, NumPy, GDAL
-- **Data Source**: ESA Copernicus Sentinel-2 L2A
-- **Authentication**: OAuth2 (CDSE)
+## 📊 Features
+- **Live Data Ingestion:** Fetches the most recent satellite data directly from space.
+- **Smart Cloud Filtering:** Automatically selects scenes with <30% cloud cover for clear analysis.
+- **NDVI Calculation:** Processes multi-band GeoTIFFs to generate vegetation health maps.
+- **Interactive Visualization:** Displays results on a dynamic Leaflet map with statistical breakdowns.
 
-## 📊 How It Works
-1. Authenticates with Copernicus Data Space via OAuth2
-2. Queries OData API for latest cloud-free Sentinel-2 scene over Niger Delta
-3. Downloads ~1GB satellite archive and extracts Red/NIR bands
-4. Calculates NDVI (Normalized Difference Vegetation Index)
-5. Generates georeferenced visualization and statistics
-6. Displays results on interactive web map
+## 📸 How it Works
+1. **Authentication:** Securely authenticates with the Copernicus API using OAuth2.
+2. **Search & Filter:** Queries the OData API for the latest Sentinel-2 L2A scene over the Niger Delta, filtering for low cloud cover.
+3. **Download & Process:** Downloads the raw ~1GB archive, extracts the Red (B04) and NIR (B08) bands, and calculates NDVI.
+4. **Visualization:** Generates a web-ready map overlay and statistical report for the user.
 
 ## 🌍 Use Cases
 - Environmental monitoring in the Niger Delta
