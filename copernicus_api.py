@@ -1,6 +1,6 @@
 """
 Niger Delta Sentinel - Phase 3: Copernicus Data Space Ecosystem (CDSE) Integration
-Uses OData API (more stable than STAC) for searching and downloading Sentinel-2 imagery.
+Uses OData API with smart cloud filtering for reliable, clear Sentinel-2 imagery.
 """
 
 import os
@@ -14,6 +14,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+
+# Force SSL certificate verification for cloud environments
 os.environ['SSL_CERT_FILE'] = certifi.where()
 os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 
@@ -67,16 +69,15 @@ def get_access_token() -> str:
 def search_latest_scene(token: str) -> dict:
     """
     Queries OData API for the latest Sentinel-2 L2A scene over Niger Delta.
-    Simplified query to ensure we find available data.
+    SMART FILTER: Fetches top 5 recent scenes and picks the first with < 30% cloud cover.
     """
-    logger.info("Querying OData API for latest Sentinel-2 scene...")
+    logger.info("Querying OData API for latest clear Sentinel-2 scene...")
     
-    # Expand date range to 90 days to ensure we find something
     end_date = datetime.now()
     start_date = end_date - timedelta(days=90)
     date_filter = f"ContentDate/Start gt {start_date.strftime('%Y-%m-%dT00:00:00.000Z')}"
     
-    # Simplified OData query - removed cloud cover filter for now
+    # Fetch top 5 to give us options for cloud filtering
     params = {
         "$filter": (
             f"Collection/Name eq 'SENTINEL-2' "
@@ -85,7 +86,7 @@ def search_latest_scene(token: str) -> dict:
             f"and {date_filter}"
         ),
         "$orderby": "ContentDate/Start desc",
-        "$top": 1,
+        "$top": 5,
         "$expand": "Attributes"
     }
     
@@ -96,7 +97,6 @@ def search_latest_scene(token: str) -> dict:
     products = response.json().get("value", [])
     
     if not products:
-        # If still nothing, try an even simpler query without geographic filter
         logger.warning("No scenes found with geographic filter. Trying without location filter...")
         params_simple = {
             "$filter": (
@@ -105,7 +105,7 @@ def search_latest_scene(token: str) -> dict:
                 f"and {date_filter}"
             ),
             "$orderby": "ContentDate/Start desc",
-            "$top": 1,
+            "$top": 5,
             "$expand": "Attributes"
         }
         response = requests.get(f"{ODATA_URL}/Products", params=params_simple, headers=headers, timeout=60, verify=certifi.where())
@@ -115,25 +115,57 @@ def search_latest_scene(token: str) -> dict:
         if not products:
             raise ValueError("No Sentinel-2 L2A scenes found in last 90 days.")
     
-    scene = products[0]
+    # 🌤️ SMART CLOUD FILTERING: Find the first scene with < 30% cloud cover
+    best_scene = None
+    for product in products:
+        cloud_cover = None
+        for attr in product.get("Attributes", []):
+            if attr["Name"] == "cloudCover":
+                try:
+                    cloud_cover = float(attr["Value"])
+                except (ValueError, TypeError):
+                    continue
+                break
+        
+        if cloud_cover is not None and cloud_cover < 30.0:
+            best_scene = product
+            logger.info(f"Found clear scene: {product['Name']} with {cloud_cover:.1f}% cloud cover.")
+            break
+    
+    # Fallback: If all recent scenes are cloudy, use the absolute latest one
+    if best_scene is None:
+        best_scene = products[0]
+        fallback_cloud = None
+        for attr in best_scene.get("Attributes", []):
+            if attr["Name"] == "cloudCover":
+                try:
+                    fallback_cloud = float(attr["Value"])
+                except (ValueError, TypeError):
+                    pass
+                break
+        logger.warning(f"No clear scenes (<30%) found recently. Using latest scene with {fallback_cloud}% cloud cover.")
+    
+    scene = best_scene
     scene_id = scene["Id"]
     scene_name = scene["Name"]
     scene_date = scene["ContentDate"]["Start"]
     
-    # Extract cloud cover from attributes
-    cloud_cover = None
+    final_cloud_cover = None
     for attr in scene.get("Attributes", []):
         if attr["Name"] == "cloudCover":
-            cloud_cover = attr["Value"]
+            try:
+                final_cloud_cover = float(attr["Value"])
+            except (ValueError, TypeError):
+                pass
             break
     
-    logger.info(f"Found latest scene: {scene_name} | UUID: {scene_id} | Date: {scene_date} | Cloud Cover: {cloud_cover}%")
+    logger.info(f"Selected scene: {scene_name} | UUID: {scene_id} | Date: {scene_date} | Cloud Cover: {final_cloud_cover}%")
     
     return {
         "id": scene_id,
         "name": scene_name,
         "date": scene_date,
-        "cloud_cover": cloud_cover
+        "cloud_cover": final_cloud_cover
     }
 
 
@@ -196,6 +228,7 @@ def download_and_prepare_scene(scene: dict, token: str, output_path: str = "data
             
         logger.info("Bands extracted. Converting JPEG2000 to multi-band GeoTIFF...")
         
+        # 🛡️ MEMORY FIX: Downsample to web-friendly resolution (2048x2048)
         TARGET_SIZE = (2048, 2048)
         
         with rasterio.open(b04_path) as src_red:
